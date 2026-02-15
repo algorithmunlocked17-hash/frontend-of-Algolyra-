@@ -23,6 +23,8 @@
             background-color: var(--bg-main);
             color: #eee;
             overflow-x: hidden;
+            margin: 0;
+            padding: 0;
         }
 
         /* Advanced Premium Glassmorphism */
@@ -38,7 +40,7 @@
                 inset 0 0.5px 1px rgba(255, 255, 255, 0.05);
         }
 
-        /* 3D Corner Shine Effect - More pronounced as requested */
+        /* 3D Corner Shine Effect */
         .shine-border {
             position: relative;
         }
@@ -116,7 +118,7 @@
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
         }
 
@@ -125,7 +127,17 @@
             50% { opacity: 0.6; }
         }
         .animate-pulse-slow { animation: pulse-slow 3s infinite ease-in-out; }
+
+        #root:empty {
+            background: #050505;
+            width: 100vw;
+            height: 100vh;
+        }
     </style>
+    <script>
+      // Shim process object to prevent ReferenceErrors in browser
+      window.process = window.process || { env: {} };
+    </script>
 <script type="importmap">
 {
   "imports": {
@@ -139,5 +151,6 @@
 </head>
 <body>
     <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>

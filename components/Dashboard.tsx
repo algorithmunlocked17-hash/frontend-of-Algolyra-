@@ -3,8 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 
 // YouTube API Key
-// Fix: Added explicit string type to prevent TypeScript from narrowing the type to a literal, 
-// which caused a "no overlap" error when comparing against an empty string on line 79.
 const YT_API_KEY: string = 'AIzaSyChKs9YVJCtuQ8uAAytFTllka_2P1akbxA';
 
 interface DashboardProps {
@@ -61,16 +59,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   ]);
 
   useEffect(() => {
+    // Safety check for Lucide library
     const win = window as any;
-    if (win.lucide) {
-      win.lucide.createIcons();
+    if (win.lucide && typeof win.lucide.createIcons === 'function') {
+      try {
+        win.lucide.createIcons();
+      } catch (e) {
+        console.warn("Lucide icon generation failed", e);
+      }
     }
   }, [channelData, isAnalyzing, activeNav, showRepoModal]);
 
   const fetchChannelData = async (query: string): Promise<ChannelStats | null> => {
     try {
       if (!YT_API_KEY || YT_API_KEY === '') {
-        throw new Error("Missing YouTube API Key");
+        throw new Error("Missing YouTube API Configuration");
       }
 
       // 1. Find Channel ID
@@ -106,19 +109,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       );
       const videosData = await videosRes.json();
       const videos: VideoData[] = (videosData.items || []).map((v: any) => ({
-        title: v.snippet.title || "Untitled Video",
-        thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.default?.url || "",
-        publishedAt: v.snippet.publishedAt,
-        videoId: v.id.videoId
+        title: v.snippet?.title || "Untitled Video",
+        thumbnail: v.snippet?.thumbnails?.high?.url || v.snippet?.thumbnails?.default?.url || "",
+        publishedAt: v.snippet?.publishedAt || "",
+        videoId: v.id?.videoId || ""
       }));
 
       // 4. AI Insight (Gemini)
       let aiInsightText = "Strategy focuses on high-retention narrative hooks and niche authority.";
       
-      // Fix: Follow @google/genai guidelines - use process.env.API_KEY directly and initialize inside the call
-      if (process.env.API_KEY) {
+      // Use globalThis.process to safely check for API_KEY without ReferenceError
+      const envKey = (globalThis as any).process?.env?.API_KEY;
+      
+      if (envKey) {
         try {
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          const ai = new GoogleGenAI({ apiKey: envKey });
           const prompt = `Analyze this YouTube channel: ${channel.snippet.title}. Statistics: ${channel.statistics.subscriberCount} subs. Provide a professional, viral-strategy focused 1-sentence insight.`;
           const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -137,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       return {
         name: channel.snippet.title,
         handle: channel.snippet.customUrl || `@${channel.snippet.title.toLowerCase().replace(/\s/g, '')}`,
-        avatar: channel.snippet.thumbnails.high.url,
+        avatar: channel.snippet.thumbnails?.high?.url || channel.snippet.thumbnails?.default?.url || "",
         totalViews: totalViews.toLocaleString(),
         subscribers: subCount.toLocaleString(),
         videoCount: videoCount.toLocaleString(),
@@ -173,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       console.error("Critical Search Failure:", crash);
       setError("A critical error occurred. Please refresh and try again.");
     } finally {
-      // GUARANTEED: Spinner will always stop
+      // Guaranteed state reset to prevent black screen lock
       setIsAnalyzing(false);
       setSearchQuery('');
     }
@@ -471,7 +476,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                         <i data-lucide="lock" className="w-5 h-5 text-blue-500"></i> Private
                      </button>
                      <button type="button" className="bg-blue-600 p-5 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 text-xs uppercase tracking-widest">
-                        <i data-lucide="globe" className="w-5 h-5"></i> Public
+                        <i data-lucide="globe" className="w-5 h-5 text-blue-500"></i> Public
                      </button>
                   </div>
                   <button type="submit" className="w-full bg-white text-black p-5 rounded-2xl font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all">

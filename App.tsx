@@ -1,15 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import FeatureSteps from './components/FeatureSteps';
-import BentoFeatures from './components/BentoFeatures';
-import Testimonials from './components/Testimonials';
-import Pricing from './components/Pricing';
-import FAQ from './components/FAQ';
-import Footer from './components/Footer';
-import AuthPage from './components/AuthPage';
-import Dashboard from './components/Dashboard';
+import Navbar from './components/Navbar.tsx';
+import Hero from './components/Hero.tsx';
+import FeatureSteps from './components/FeatureSteps.tsx';
+import BentoFeatures from './components/BentoFeatures.tsx';
+import Testimonials from './components/Testimonials.tsx';
+import Pricing from './components/Pricing.tsx';
+import FAQ from './components/FAQ.tsx';
+import Footer from './components/Footer.tsx';
+import AuthPage from './components/AuthPage.tsx';
+import Dashboard from './components/Dashboard.tsx';
 
 const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'signup' | 'login' | 'dashboard'>('landing');
