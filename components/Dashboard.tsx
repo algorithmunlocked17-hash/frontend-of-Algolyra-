@@ -2,7 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 
-const YT_API_KEY = 'AIzaSyChKs9YVJCtuQ8uAAytFTllka_2P1akbxA';
+// YouTube API Key
+// Fix: Added explicit string type to prevent TypeScript from narrowing the type to a literal, 
+// which caused a "no overlap" error when comparing against an empty string on line 79.
+const YT_API_KEY: string = 'AIzaSyChKs9YVJCtuQ8uAAytFTllka_2P1akbxA';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -48,6 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [channelData, setChannelData] = useState<ChannelStats | null>(null);
   const [showRepoModal, setShowRepoModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Mock Repositories
   const [repos, setRepos] = useState<Repository[]>([
@@ -63,51 +67,58 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     }
   }, [channelData, isAnalyzing, activeNav, showRepoModal]);
 
-  const safeGetApiKey = () => {
+  const fetchChannelData = async (query: string): Promise<ChannelStats | null> => {
     try {
-      return typeof process !== 'undefined' ? process.env.API_KEY : '';
-    } catch {
-      return '';
-    }
-  };
+      if (!YT_API_KEY || YT_API_KEY === '') {
+        throw new Error("Missing YouTube API Key");
+      }
 
-  const fetchChannelData = async (query: string) => {
-    try {
+      // 1. Find Channel ID
       const searchRes = await fetch(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=1&key=${YT_API_KEY}`
       );
-      if (!searchRes.ok) throw new Error("Search API failed");
-      const searchData = await searchRes.json();
       
+      if (!searchRes.ok) {
+        const errData = await searchRes.json();
+        throw new Error(errData.error?.message || "YouTube search failed");
+      }
+      
+      const searchData = await searchRes.json();
       if (!searchData.items || searchData.items.length === 0) {
-        alert("Channel not found.");
+        setError("Channel not found. Please try the exact name or handle.");
         return null;
       }
 
       const channelId = searchData.items[0].id.channelId;
+      
+      // 2. Get Statistics
       const statsRes = await fetch(
         `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${YT_API_KEY}`
       );
+      if (!statsRes.ok) throw new Error("Failed to fetch channel statistics");
       const statsData = await statsRes.json();
+      if (!statsData.items || statsData.items.length === 0) return null;
       const channel = statsData.items[0];
 
+      // 3. Get Recent Videos
       const videosRes = await fetch(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=6&key=${YT_API_KEY}`
       );
       const videosData = await videosRes.json();
       const videos: VideoData[] = (videosData.items || []).map((v: any) => ({
-        title: v.snippet.title,
-        thumbnail: v.snippet.thumbnails.high.url,
+        title: v.snippet.title || "Untitled Video",
+        thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.default?.url || "",
         publishedAt: v.snippet.publishedAt,
         videoId: v.id.videoId
       }));
 
+      // 4. AI Insight (Gemini)
       let aiInsightText = "Strategy focuses on high-retention narrative hooks and niche authority.";
-      const geminiKey = safeGetApiKey();
       
-      if (geminiKey) {
+      // Fix: Follow @google/genai guidelines - use process.env.API_KEY directly and initialize inside the call
+      if (process.env.API_KEY) {
         try {
-          const ai = new GoogleGenAI({ apiKey: geminiKey });
+          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           const prompt = `Analyze this YouTube channel: ${channel.snippet.title}. Statistics: ${channel.statistics.subscriberCount} subs. Provide a professional, viral-strategy focused 1-sentence insight.`;
           const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -115,7 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           });
           if (response.text) aiInsightText = response.text;
         } catch (aiErr) {
-          console.warn("AI strategy failed:", aiErr);
+          console.warn("AI strategy failed, using fallback:", aiErr);
         }
       }
 
@@ -138,8 +149,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         aiInsight: aiInsightText,
         recentVideos: videos
       };
-    } catch (err) {
+    } catch (err: any) {
       console.error("Dashboard fetch error:", err);
+      setError(err.message || "An unexpected error occurred while fetching data.");
       return null;
     }
   };
@@ -147,12 +159,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
+    
     setIsAnalyzing(true);
-    setActiveNav('Channels'); // Force back to channels view on search
+    setError(null);
+    setActiveNav('Channels'); 
+    
     try {
       const data = await fetchChannelData(searchQuery);
-      if (data) setChannelData(data);
+      if (data) {
+        setChannelData(data);
+      }
+    } catch (crash: any) {
+      console.error("Critical Search Failure:", crash);
+      setError("A critical error occurred. Please refresh and try again.");
     } finally {
+      // GUARANTEED: Spinner will always stop
       setIsAnalyzing(false);
       setSearchQuery('');
     }
@@ -244,11 +265,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
              <button onClick={() => setShowRepoModal(true)} className="bg-white/5 hover:bg-white/10 px-5 rounded-2xl flex items-center gap-2 border border-white/10 text-[12px] font-bold transition-all">
                 <i data-lucide="plus" className="w-4 h-4 text-blue-500"></i> New Repo
              </button>
-             <button onClick={handleSearch} className="bg-[#0062ff] w-12 h-12 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(0,98,255,0.2)]">
+             <button onClick={handleSearch} className="bg-[#0062ff] w-12 h-12 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(0,98,255,0.2)] hover:scale-105 transition-all">
                 <i data-lucide="search" className="w-5 h-5 text-white"></i>
              </button>
           </div>
         </div>
+
+        {/* ERROR MESSAGE BAR */}
+        {error && (
+          <div className="mx-10 mt-6 bg-red-500/10 border border-red-500/20 text-red-400 px-6 py-4 rounded-2xl flex items-center justify-between animate-fade-in">
+            <div className="flex items-center gap-3">
+              <i data-lucide="alert-circle" className="w-5 h-5"></i>
+              <span className="text-[13px] font-medium">{error}</span>
+            </div>
+            <button onClick={() => setError(null)} className="hover:text-white transition-colors">
+              <i data-lucide="x" className="w-4 h-4"></i>
+            </button>
+          </div>
+        )}
 
         <div className="p-10 max-w-[1500px] mx-auto w-full space-y-12">
           {activeNav === 'Research Repos' ? (
@@ -298,7 +332,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                   </div>
                 ))}
                 
-                {/* Create Repo Placeholder */}
                 <button 
                   onClick={() => setShowRepoModal(true)}
                   className="rounded-[32px] border-2 border-dashed border-white/5 hover:border-blue-500/30 flex flex-col items-center justify-center p-8 space-y-4 text-[#333] hover:text-blue-500 transition-all group"
@@ -314,23 +347,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                   <div className="absolute inset-0 border-[5px] border-blue-600/10 rounded-full"></div>
                   <div className="absolute inset-0 border-[5px] border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                </div>
-               <p className="text-blue-500 font-black tracking-[0.4em] uppercase text-[11px] animate-pulse">Scanning Cloud Hubs</p>
+               <p className="text-blue-500 font-black tracking-[0.4em] uppercase text-[11px] animate-pulse">Syncing Cloud Intelligence</p>
             </div>
           ) : !channelData ? (
              <div className="h-[550px] flex flex-col items-center justify-center text-center space-y-8 opacity-20">
                 <i data-lucide="git-pull-request" className="w-24 h-24 text-white"></i>
                 <div className="space-y-3">
-                  <h2 className="text-3xl font-black tracking-tight">Syncing Repositories</h2>
-                  <p className="text-sm font-medium">Search for a channel to analyze and push to your repos.</p>
+                  <h2 className="text-3xl font-black tracking-tight">Syncing Hubs</h2>
+                  <p className="text-sm font-medium">Enter a channel handle to fetch real-time creator metrics.</p>
                 </div>
              </div>
           ) : (
             <>
               {/* ANALYTICS CARD */}
-              <div className="glass-panel shine-border rounded-[40px] p-12 space-y-16 shadow-2xl border-white/5">
+              <div className="glass-panel shine-border rounded-[40px] p-12 space-y-16 shadow-2xl border-white/5 animate-fade-in">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-8">
-                    <img src={channelData.avatar} className="w-24 h-24 rounded-full border-2 border-white/10 p-1 bg-[#111]" alt="" />
+                    <img src={channelData.avatar} className="w-24 h-24 rounded-full border-2 border-white/10 p-1 bg-[#111] object-cover" alt="" />
                     <div className="space-y-1">
                       <h2 className="text-3xl font-black tracking-tight">{channelData.name}</h2>
                       <p className="text-[12px] font-black text-[#555] uppercase tracking-[0.2em]">{channelData.handle}</p>
@@ -338,7 +371,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                   </div>
                   <div className="flex items-center gap-4">
                     <button className="flex items-center gap-2 bg-blue-600/10 text-blue-500 px-5 py-2.5 rounded-2xl border border-blue-500/20 font-bold text-[11px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">
-                       <i data-lucide="upload-cloud" className="w-4 h-4"></i> Push to Repo
+                       <i data-lucide="upload-cloud" className="w-4 h-4"></i> Push to Hub
                     </button>
                     <button className="w-12 h-12 rounded-2xl hover:bg-white/5 flex items-center justify-center transition-colors">
                       <i data-lucide="more-vertical" className="w-6 h-6 text-[#333]"></i>
@@ -386,14 +419,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
               <section className="space-y-12 pt-16">
                  <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-black tracking-tight flex items-center gap-4">
-                       <i data-lucide="play-circle" className="text-blue-500"></i> Recent Videos
+                       <i data-lucide="play-circle" className="text-blue-500"></i> Recent Uploads
                     </h2>
-                    <button className="text-[11px] font-black text-blue-500 tracking-[0.3em] uppercase">Commit to Hub ↗</button>
+                    <button className="text-[11px] font-black text-blue-500 tracking-[0.3em] uppercase">Deep Audit ↗</button>
                  </div>
                  
                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
                     {channelData.recentVideos.map((video, i) => (
-                       <div key={i} className="group cursor-pointer">
+                       <div key={i} className="group cursor-pointer" onClick={() => window.open(`https://youtube.com/watch?v=${video.videoId}`, '_blank')}>
                           <div className="glass-panel shine-border aspect-[9/16] rounded-[24px] mb-5 relative overflow-hidden group-hover:shadow-[0_0_50px_rgba(0,98,255,0.2)] transition-all duration-700">
                              <img src={video.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-60 group-hover:opacity-100" alt="" />
                              <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black via-black/70 to-transparent">
@@ -417,7 +450,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                <div className="flex justify-between items-start mb-10">
                   <div>
                      <h3 className="text-3xl font-black tracking-tight">Create Repository</h3>
-                     <p className="text-gray-500 mt-2">Initialize a new research hub for your content strategy.</p>
+                     <p className="text-gray-500 mt-2">Initialize a new research workspace.</p>
                   </div>
                   <button onClick={() => setShowRepoModal(false)} className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all">
                      <i data-lucide="x" className="w-6 h-6"></i>
@@ -427,22 +460,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                <form className="space-y-8" onSubmit={(e) => { e.preventDefault(); setShowRepoModal(false); }}>
                   <div className="space-y-3">
                      <label className="text-[10px] font-black uppercase tracking-widest text-[#444]">Repository Name</label>
-                     <input type="text" placeholder="e.g. survival-series-research" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-blue-500/50 transition-all" />
+                     <input type="text" placeholder="e.g. survival-series-research" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-blue-500/50 transition-all text-sm" />
                   </div>
                   <div className="space-y-3">
-                     <label className="text-[10px] font-black uppercase tracking-widest text-[#444]">Description (Optional)</label>
-                     <textarea placeholder="Strategy goals and target niches..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-blue-500/50 transition-all h-32" />
+                     <label className="text-[10px] font-black uppercase tracking-widest text-[#444]">Description</label>
+                     <textarea placeholder="Strategy goals and target niches..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-blue-500/50 transition-all h-32 text-sm" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                     <button type="button" className="bg-white/5 p-5 rounded-2xl border border-white/10 font-bold flex items-center justify-center gap-3">
+                     <button type="button" className="bg-white/5 p-5 rounded-2xl border border-white/10 font-bold flex items-center justify-center gap-3 text-xs uppercase tracking-widest">
                         <i data-lucide="lock" className="w-5 h-5 text-blue-500"></i> Private
                      </button>
-                     <button type="button" className="bg-blue-600 p-5 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20">
+                     <button type="button" className="bg-blue-600 p-5 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 text-xs uppercase tracking-widest">
                         <i data-lucide="globe" className="w-5 h-5"></i> Public
                      </button>
                   </div>
                   <button type="submit" className="w-full bg-white text-black p-5 rounded-2xl font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all">
-                     Initialize Workspace
+                     Initialize Hub
                   </button>
                </form>
             </div>
