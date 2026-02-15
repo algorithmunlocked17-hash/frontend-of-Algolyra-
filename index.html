@@ -6,50 +6,133 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Algolyra - Research and Create Viral Content</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
+        :root {
+            --bg-main: #050505;
+            --bg-sidebar: #080808;
+            --primary-blue: #0062ff;
+            --border-color: rgba(255, 255, 255, 0.05);
+            --card-bg: rgba(13, 13, 13, 0.6);
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #000;
-            color: #fff;
-            scroll-behavior: smooth;
+            font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-main);
+            color: #eee;
+            overflow-x: hidden;
         }
-        .font-dm {
-            font-family: 'DM Sans', sans-serif;
+
+        /* Advanced Premium Glassmorphism */
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 10px 30px -10px rgba(0, 0, 0, 0.5),
+                inset 0 0.5px 1px rgba(255, 255, 255, 0.05);
         }
-        /* Reveal animation styles */
-        .reveal {
-            opacity: 0;
-            transform: translateY(40px);
-            transition: opacity 1s ease-out, transform 1s cubic-bezier(0.16, 1, 0.3, 1);
-            will-change: opacity, transform;
+
+        /* 3D Corner Shine Effect - More pronounced as requested */
+        .shine-border {
+            position: relative;
         }
-        .reveal.active {
-            opacity: 1;
-            transform: translateY(0);
+
+        .shine-border::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0) 5%, 
+                rgba(255, 255, 255, 0.2) 10%, 
+                rgba(255, 255, 255, 0.5) 15%, 
+                rgba(255, 255, 255, 0.2) 20%, 
+                transparent 50%);
+            z-index: 10;
+            pointer-events: none;
         }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
+        
+        .shine-border::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 1px;
+            background: linear-gradient(180deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0) 5%, 
+                rgba(255, 255, 255, 0.2) 10%, 
+                rgba(255, 255, 255, 0.5) 15%, 
+                rgba(255, 255, 255, 0.2) 20%, 
+                transparent 50%);
+            z-index: 10;
+            pointer-events: none;
         }
-        ::-webkit-scrollbar-track {
-            background: #0a0a0a;
+
+        /* Sidebar Item Hover */
+        .sidebar-item {
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.03);
         }
+        
+        .sidebar-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.08);
+            transform: translateX(2px);
+        }
+
+        .sidebar-item.active {
+            background: rgba(0, 98, 255, 0.08);
+            color: white;
+            border-color: rgba(0, 98, 255, 0.2);
+        }
+
+        .sidebar-item.active::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 20%;
+            height: 60%;
+            width: 3px;
+            background: var(--primary-blue);
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 0 12px var(--primary-blue);
+            z-index: 15;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb {
-            background: #222;
-            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #333;
+
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
+        .animate-pulse-slow { animation: pulse-slow 3s infinite ease-in-out; }
     </style>
 <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/"
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.41.0"
   }
 }
 </script>

@@ -9,13 +9,15 @@ import Pricing from './components/Pricing';
 import FAQ from './components/FAQ';
 import Footer from './components/Footer';
 import AuthPage from './components/AuthPage';
+import Dashboard from './components/Dashboard';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'landing' | 'signup' | 'login'>('landing');
+  const [view, setView] = useState<'landing' | 'signup' | 'login' | 'dashboard'>('landing');
 
   const navigateToSignup = () => setView('signup');
   const navigateToLogin = () => setView('login');
   const navigateToLanding = () => setView('landing');
+  const navigateToDashboard = () => setView('dashboard');
 
   useEffect(() => {
     if (view !== 'landing') return;
@@ -39,11 +41,16 @@ const App: React.FC = () => {
     return () => observer.disconnect();
   }, [view]);
 
+  if (view === 'dashboard') {
+    return <Dashboard onLogout={navigateToLanding} />;
+  }
+
   if (view === 'signup' || view === 'login') {
     return (
       <AuthPage 
         mode={view} 
         onBack={navigateToLanding} 
+        onAuthSuccess={navigateToDashboard}
         onSwitchMode={() => setView(view === 'signup' ? 'login' : 'signup')} 
       />
     );

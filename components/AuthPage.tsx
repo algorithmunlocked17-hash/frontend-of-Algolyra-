@@ -5,10 +5,17 @@ interface AuthPageProps {
   mode: 'signup' | 'login';
   onBack: () => void;
   onSwitchMode: () => void;
+  onAuthSuccess: () => void;
 }
 
-const AuthPage: React.FC<AuthPageProps> = ({ mode, onBack, onSwitchMode }) => {
+const AuthPage: React.FC<AuthPageProps> = ({ mode, onBack, onSwitchMode, onAuthSuccess }) => {
   const isLogin = mode === 'login';
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Simulate successful authentication
+    onAuthSuccess();
+  };
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col md:flex-row font-inter overflow-hidden">
@@ -35,10 +42,11 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onBack, onSwitchMode }) => {
             {isLogin ? 'Enter your credentials to access your account.' : 'Join thousands of creators growing their channels.'}
           </p>
 
-          <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">Email address</label>
               <input 
+                required
                 type="email" 
                 placeholder="name@work-email.com"
                 className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-600/50 focus:border-blue-600 transition-all placeholder:text-gray-700"
@@ -49,6 +57,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onBack, onSwitchMode }) => {
               <label className="text-sm font-medium text-gray-300">Password</label>
               <div className="relative">
                 <input 
+                  required
                   type="password" 
                   className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 pr-12 text-white focus:outline-none focus:ring-2 focus:ring-blue-600/50 focus:border-blue-600 transition-all"
                 />
@@ -63,6 +72,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onBack, onSwitchMode }) => {
                 <label className="text-sm font-medium text-gray-300">Confirm Password</label>
                 <div className="relative">
                   <input 
+                    required
                     type="password" 
                     className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 pr-12 text-white focus:outline-none focus:ring-2 focus:ring-blue-600/50 focus:border-blue-600 transition-all"
                   />
@@ -89,7 +99,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onBack, onSwitchMode }) => {
             <div className="text-center mt-8">
               <p className="text-gray-500 text-sm">
                 {isLogin ? "Don't have an account? " : "Already have an account? "}
-                <button onClick={onSwitchMode} className="text-blue-500 hover:text-blue-400 font-semibold transition-colors">
+                <button type="button" onClick={onSwitchMode} className="text-blue-500 hover:text-blue-400 font-semibold transition-colors">
                   {isLogin ? 'Create one now' : 'Sign in'}
                 </button>
               </p>
