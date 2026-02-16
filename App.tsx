@@ -13,66 +13,46 @@ import Dashboard from './components/Dashboard.tsx';
 const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'signup' | 'login' | 'dashboard'>('landing');
 
-  const navigateToSignup = () => setView('signup');
-  const navigateToLogin = () => setView('login');
-  const navigateToLanding = () => setView('landing');
-  const navigateToDashboard = () => setView('dashboard');
-
   useEffect(() => {
     if (view !== 'landing') return;
 
-    const observerOptions = {
-      threshold: 0.1,
-      rootMargin: '0px 0px -50px 0px'
-    };
-
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('active');
-        }
+        if (entry.isIntersecting) entry.target.classList.add('active');
       });
-    }, observerOptions);
+    }, { threshold: 0.1 });
 
-    const revealElements = document.querySelectorAll('.reveal');
-    revealElements.forEach((el) => observer.observe(el));
-
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, [view]);
 
   if (view === 'dashboard') {
-    return <Dashboard onLogout={navigateToLanding} />;
+    return <Dashboard onLogout={() => setView('landing')} />;
   }
 
   if (view === 'signup' || view === 'login') {
     return (
       <AuthPage 
         mode={view} 
-        onBack={navigateToLanding} 
-        onAuthSuccess={navigateToDashboard}
+        onBack={() => setView('landing')} 
+        onAuthSuccess={() => setView('dashboard')}
         onSwitchMode={() => setView(view === 'signup' ? 'login' : 'signup')} 
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-blue-500/30 overflow-x-hidden">
-      <Navbar onNavigateSignup={navigateToSignup} onNavigateLogin={navigateToLogin} />
+    <div className="min-h-screen bg-black text-white selection:bg-blue-500/30">
+      <div className="bg-glow top-[-200px] left-1/2 -translate-x-1/2"></div>
+      <Navbar onNavigateSignup={() => setView('signup')} onNavigateLogin={() => setView('login')} />
       <main>
-        <Hero onNavigateAuth={navigateToSignup} />
-        <div id="features">
-           <FeatureSteps />
-           <BentoFeatures />
-        </div>
+        <Hero onNavigateAuth={() => setView('signup')} />
+        <div id="features"><FeatureSteps /><BentoFeatures /></div>
         <Testimonials />
-        <div id="pricing">
-          <Pricing onNavigateAuth={navigateToSignup} />
-        </div>
-        <div id="faq">
-          <FAQ />
-        </div>
+        <div id="pricing"><Pricing onNavigateAuth={() => setView('signup')} /></div>
+        <div id="faq"><FAQ /></div>
       </main>
-      <Footer onNavigateAuth={navigateToSignup} />
+      <Footer onNavigateAuth={() => setView('signup')} />
     </div>
   );
 };
